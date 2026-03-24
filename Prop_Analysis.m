@@ -1,10 +1,10 @@
 %{
 ====================================================================================================
-SCRIPT NAME: Isp_to_Expansion.m
+SCRIPT NAME: Prop_Analysis.m
 AUTHOR: Elias Oliver
 CLASS: MAE 4350.001 (Aerospace Vehicle Design I)
 INITIAL VERSION: 03/23/2026
-LAST REVISION: 03/23/2026
+LAST REVISION: 03/24/2026
 ====================================================================================================
 SCRIPT DESCRIPTION:
 This script will create plots to inform the design desicions needed for the RCS thrusters.
@@ -60,8 +60,8 @@ gamma = 1.185;
 
 %% Constants:
 
-eta_c_star = 0.95;
-%[]c* combustion efficiency, conservative estimate for equilibrium flow.
+eta_c_star = 1.05;
+%[]c* combustion efficiency, conservative estimate for frozen flow.
 
 R = 8314 / MM;
 %[J/kg-K]Exhaust gas constant.
@@ -78,105 +78,152 @@ lambda = 0.95;
 g_0 = 9.80665;
 %[m/s^2]Sea level acceleration due to gravity.
 
-%% Variables:
+%% Adjust # of Point in Ranges:
 
-n = 5;
+n = 100;
 %[]Number of values in the chamber pressure range.
 
-m = 50;
+m = 5000;
 %[]Number of values in the exit pressure range.
+
+p = 50;
+%[]Number of values in the throat area range.
+
+%% Reasonable Ranges:
 
 P_c = linspace(345000,1380000,n);
 %[Pa]Creates a range of possible chamber pressures.
 
-P_e = linspace(1000,175000,m);
+P_e = linspace(10000,700000,m);
 %[Pa]Creates a range of possible exit pressures.
 
-M_e = zeros(n,m);
+A_t = linspace(6.4516E-5,0.00129032,p);
+%[m^2]Creates a range of throat areas.
+
+%% Allocate Memory for Loops:
+
+M_e = zeros(m);
 %[]Allocates memory for the exit Mach number matrix.
 
-epsilon = zeros(n,m);
+epsilon = zeros(m);
 %[]Allocates memory for the expansion ratio matrix.
 
-I_sp = zeros(n,m);
+I_sp = zeros(m);
 %[]Allocates memory for the specific impulse matrix.
 
-for i = 1:n
+mdot = zeros(n,p);
+%[]Allocates memory for the exit Mach number matrix.
+
+F = zeros(n,m,p);
+%[]Allocates memory for the expansion ratio matrix.
+
+%% Calculate:
 
     for j = 1:m
 
-        M_e(i,j) = sqrt((2 / (gamma - 1)) * ((P_c(i) / P_e(j))^((gamma - 1) / gamma) - 1));
+        M_e(j) = sqrt((2 / (gamma - 1)) * ((P_c(end) / P_e(j))^((gamma - 1) / gamma) - 1));
         %[]Calculates exit Mach number.
 
-        epsilon(i,j) = (1 / M_e(i,j)) * ((2 / (gamma + 1)) * (1 + ((gamma - 1) / 2) * M_e(i,j)^2))^((gamma + 1) / (2 * gamma - 2));
+        epsilon(j) = (1 / M_e(j)) * ((2 / (gamma + 1)) * (1 + ((gamma - 1) / 2) * M_e(j)^2))^((gamma + 1) / (2 * gamma - 2));
         %[]Calculates the expansion ratio.
 
-        I_sp(i,j) = lambda * (((c_star * gamma) / (g_0) * sqrt((2 / (gamma - 1)) * (2 / (gamma + 1))^((gamma + 1) / (gamma - 1)) * (1 - (P_e(j) / P_c(i))^((gamma - 1) / gamma)))) + ((c_star * epsilon(i,j)) / (g_0 * P_c(i)) * (P_e(j) - P_a)));
+        I_sp(j) = lambda * (((c_star * gamma) / (g_0) * sqrt((2 / (gamma - 1)) * (2 / (gamma + 1))^((gamma + 1) / (gamma - 1)) * (1 - (P_e(j) / P_c(end))^((gamma - 1) / gamma)))) + ((c_star * epsilon(j)) / (g_0 * P_c(end)) * (P_e(j) - P_a)));
         %[s]Calculates specific impulse.
+
+        for i = 1:n 
+        
+            for k = 1:p
+        
+                mdot(i,k) = (P_c(i) * A_t(k)) / c_star;
+                %[kg/s]Calculates the mass flow rate of the propellant.
+        
+                F(i,j,k) = I_sp(j) * mdot(i,k) * g_0;
+                %[N]Calculates the thrust produced.
+        
+            end
+        
+        end
 
     end
 
-end
 
-%% Make Plots:
+
+%% Make Isp Plot:
 
 Window = figure( ... %Opens a new window.
     'Color','w', ...%Makes the background color white.
-    'Name','Plotting', ...%Adjust the name of the window.
+    'Name','Isp', ...%Adjust the name of the window.
     'NumberTitle','Off');%Turns the number title off.
 %[]Opens a new window and adjusts its properties.
 
 Axes = axes( ...
-    'FontName','Arial', ...
+    'FontName','Times New Roman', ...
     'FontSize',12, ...
     'FontWeight','Bold', ...
     'NextPlot','Add', ...
     'Parent',Window, ...
-    'XLim',[0,100], ...
-    'YLim', [150,300], ...
-    'XTick',0:10:100, ...
-    'YTick',150:50:300);
+    'XLim',[0,16], ...
+    'YLim', [200,300], ...
+    'XTick',0:1:16, ...
+    'YTick',200:10:300);
 %[]Adds an axes to the specified window and adjusts its properties.
 
-plot(epsilon(1,:),I_sp(1,:), ...
+plot(epsilon,I_sp, ...
     'Color','k', ...
-    'LineStyle','none', ...
-    'Marker','.', ...
+    'LineStyle','-', ...
+    'LineWidth',2, ...
+    'Marker','none', ...
     'Parent',Axes);
 %[]Adds a plot to the specified axes and adjusts its properties.
 
-plot(epsilon(2,:),I_sp(2,:), ...
-    'Color','k', ...
-    'LineStyle','none', ...
-    'Marker','.', ...
-    'Parent',Axes);
-%[]Adds a plot to the specified axes and adjusts its properties.
-
-plot(epsilon(3,:),I_sp(3,:), ...
-    'Color','k', ...
-    'LineStyle','none', ...
-    'Marker','.', ...
-    'Parent',Axes);
-%[]Adds a plot to the specified axes and adjusts its properties.
-
-plot(epsilon(4,:),I_sp(4,:), ...
-    'Color','k', ...
-    'LineStyle','none', ...
-    'Marker','.', ...
-    'Parent',Axes);
-%[]Adds a plot to the specified axes and adjusts its properties.
-
-plot(epsilon(5,:),I_sp(5,:), ...
-    'Color','k', ...
-    'LineStyle','none', ...
-    'Marker','.', ...
-    'Parent',Axes);
-%[]Adds a plot to the specified axes and adjusts its properties.
-
-xlabel(Axes, 'Expansion ratio, \epsilon');
+xlabel(Axes, 'Expansion ratio, \epsilon','FontName','Times New Roman');
 %[]Sets the x-axis label.
 
-ylabel(Axes, 'Specific Impulse (s), I_{sp}');
+ylabel(Axes, 'Specific Impulse, I_{sp} (s)','FontName','Times New Roman');
+%[]Sets the y-axis label.
+
+%% Make Thrust Plot:
+
+WindowT = figure( ... %Opens a new window.
+    'Color','w', ...%Makes the background color white.
+    'Name','Thrust', ...%Adjust the name of the window.
+    'NumberTitle','Off');%Turns the number title off.
+%[]Opens a new window and adjusts its properties.
+
+AxesT = axes( ...
+    'FontName','Times New Roman', ...
+    'FontSize',12, ...
+    'FontWeight','Bold', ...
+    'NextPlot','Add', ...
+    'Parent',WindowT, ...
+    'XLim',[6.4E-5,0.0013], ...
+    'YLim', [0,3000], ...
+    'XTick',6.4E-5:0.0001:0.0013, ...
+    'YTick',0:1000:3000);
+%[]Adds an axes to the specified window and adjusts its properties.
+
+colors = jet(n);
+%[]Creates colos for the different chamber pressures.
+
+ep_indx = 1;
+%[]Index of chosen expansion ratio.
+
+for i = 1:n
+
+    plot(A_t,squeeze(F(i,ep_indx,:)), ...
+        'Color',colors(i, :), ...
+        'LineStyle','-', ...
+        'LineWidth',1, ...
+        'Marker','none', ...
+        'Parent',AxesT);
+    %[]Adds a plot to the specified axes and adjusts its properties.
+
+end
+
+xlabel(AxesT, 'Throat Area, A_t (m^2)','FontName','Times New Roman');
+%[]Sets the x-axis label.
+
+ylabel(AxesT, 'Thrust, F (N)','FontName','Times New Roman');
 %[]Sets the y-axis label.
 
 %% PRINT SIMULATION TIME:
