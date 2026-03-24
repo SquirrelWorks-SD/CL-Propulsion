@@ -80,16 +80,16 @@ g_0 = 9.80665;
 
 %% Variables:
 
-n = 50;
+n = 500;
 %[]Number of values in the chamber pressure range.
 
-m = 50;
+m = 500;
 %[]Number of values in the exit pressure range.
 
 P_c = linspace(345000,1380000,n);
 %[Pa]Creates a range of possible chamber pressures.
 
-P_e = linspace(340000,35000,m);
+P_e = linspace(35000,175000,m);
 %[Pa]Creates a range of possible exit pressures.
 
 M_e = zeros(n,m);
@@ -98,23 +98,67 @@ M_e = zeros(n,m);
 epsilon = zeros(n,m);
 %[]Allocates memory for the expansion ratio matrix.
 
-I_sp(i,j) = zeros(n,m);
+I_sp = zeros(n,m);
 %[]Allocates memory for the specific impulse matrix.
 
 for i = 1:n
 
     for j = 1:m
 
-        M_e(i,j) = sqrt((2 / (gamma - 1)) * ((p_e(j) / P_c(i))^((1 - gamma) / gamma) - 1));
+        M_e(i,j) = sqrt((2 / (gamma - 1)) * ((P_e(j) / P_c(i))^((1 - gamma) / gamma) - 1));
         %[]Calculates exit Mach number.
 
         epsilon(i,j) = (1 / M_e(i,j)) * ((2 / (gamma + 1)) * (1 + ((gamma - 1) / 2) * M_e(i,j)^2))^((gamma + 1) / (2 * gamma - 2));
         %[]Calculates the expansion ratio.
 
-        I_sp(i,j) = lambda * (((c_star * gamma) / (g_0) * sqrt((2 / (gamma - 1)) * (2 / (gamma + 1))^((gamma + 1) / (gamma - 1)) * (1 - (P_e(j) / P_c(i))^((gamma - 1) / gamma)))) + ((c_star * epsilon) / (g_0 * P_c(i)) * (P_e(j) - P_a)));
-        %[
+        I_sp(i,j) = lambda * (((c_star * gamma) / (g_0) * sqrt((2 / (gamma - 1)) * (2 / (gamma + 1))^((gamma + 1) / (gamma - 1)) * (1 - (P_e(j) / P_c(i))^((gamma - 1) / gamma)))) + ((c_star * epsilon(i,j)) / (g_0 * P_c(i)) * (P_e(j) - P_a)));
+        %[s]Calculates specific impulse.
 
     end
 
 end
 
+%% Make Plots:
+
+Window = figure( ... %Opens a new window.
+    'Color','w', ...%Makes the background color white.
+    'Name','Plotting', ...%Adjust the name of the window.
+    'NumberTitle','Off');%Turns the number title off.
+%[]Opens a new window and adjusts its properties.
+
+Axes = axes( ...
+    'FontName','Arial', ...
+    'FontSize',12, ...
+    'FontWeight','Bold', ...
+    'NextPlot','Add', ...
+    'Parent',Window, ...
+    'XLim',[0,8], ...
+    'YLim', [0,600], ...
+    'XTick',0:1:8, ...
+    'YTick',0:50:600);
+%[]Adds an axes to the specified window and adjusts its properties.
+
+plot(epsilon(1,:),I_sp(20,:), ...
+    'Color','k', ...
+    'LineStyle','none', ...
+    'Marker','.', ...
+    'Parent',Axes);
+%[]Adds a plot to the specified axes and adjusts its properties.
+
+xlabel(Axes, 'Expansion ratio, \epsilon');
+%[]Sets the x-axis label.
+
+ylabel(Axes, 'Specific Impulse (s), I_{sp}');
+%[]Sets the y-axis label.
+
+%% PRINT SIMULATION TIME:
+
+fprintf('======================================================================\n');
+%[]Prints the formatted string on the command window.
+
+SimulationTime = toc;
+%[s]Stops the program timer.
+
+fprintf('Simulation Complete! (%0.3f seconds)\n',SimulationTime);
+%[]Prints the simulation time on the command window.
+%===================================================================================================
