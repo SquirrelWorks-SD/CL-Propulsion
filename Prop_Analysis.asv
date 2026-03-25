@@ -205,11 +205,14 @@ AxesT = axes( ...
 colors = jet(n);
 %[]Creates colos for the different chamber pressures.
 
+
+
 ep_indx = 2;
 %[]Index of chosen expansion ratio.
 
 for i = 1:n
 
+    x = squeeze(F(i,ep_indx,:));
     plot(A_t,squeeze(F(i,ep_indx,:)), ...
         'Color',colors(i, :), ...
         'LineStyle','-', ...
