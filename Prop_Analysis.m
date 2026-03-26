@@ -78,12 +78,21 @@ lambda = 0.95;
 g_0 = 9.80665;
 %[m/s^2]Sea level acceleration due to gravity.
 
+V_eng = 0.00255;
+%[m^3]Set a total engine volume.
+
+L_star = 1.78;
+%[m]Caracteristic length for H2O2 and RP-1.
+
+theta_cn = deg2rad(15);
+%[rad]Half cone angle of the nozzle.
+
 %% Adjust # of Point in Ranges:
 
 n = 10;
 %[]Number of values in the chamber pressure range.
 
-m = 500;
+m = 50;
 %[]Number of values in the exit pressure range.
 
 p = 50;
@@ -94,7 +103,7 @@ p = 50;
 P_c = linspace(345000,1380000,n);
 %[Pa]Creates a range of possible chamber pressures.
 
-P_e = linspace(10000,700000,m);
+P_e = linspace(5000,700000,m);
 %[Pa]Creates a range of possible exit pressures.
 
 A_t = linspace(6.4516E-5,0.00129032,p);
@@ -102,13 +111,13 @@ A_t = linspace(6.4516E-5,0.00129032,p);
 
 %% Allocate Memory for Loops:
 
-M_e = zeros(m,1);
+M_e = zeros(1,m);
 %[]Allocates memory for the exit Mach number matrix.
 
-epsilon = zeros(m,1);
+epsilon = zeros(1,m);
 %[]Allocates memory for the expansion ratio matrix.
 
-I_sp = zeros(m,1);
+I_sp = zeros(1,m);
 %[]Allocates memory for the specific impulse matrix.
 
 mdot = zeros(n,p);
@@ -146,7 +155,21 @@ F = zeros(n,m,p);
 
     end
 
+V_c = L_star * A_t;
+%[m^3]Calculates the combustion chamber volume.
 
+V_n = V_eng - V_c;
+%[m^3]Calculates the nozzle volume.
+
+epsilonV = zeros(1,p);
+%[]Allocates memory for expansion ratio array.
+
+for i = 1:p
+
+    epsilonV(i) = (1 + (3 * sqrt(pi) * tan(theta_cn) * V_n(i)) / (A_t(i)^(3/2)))^(2/3);
+    %[]Calculates the expansion ratio.
+
+end
 
 %% Make Isp Plot:
 
@@ -197,20 +220,27 @@ AxesT = axes( ...
     'NextPlot','Add', ...
     'Parent',WindowT, ...
     'XLim',[6.4E-5,0.0013], ...
-    'YLim', [0,3000], ...
-    'XTick',6.4E-5:0.0001:0.0013, ...
-    'YTick',0:1000:3000);
+    'XTick',6.4E-5:0.0001:0.0013);
 %[]Adds an axes to the specified window and adjusts its properties.
 
-colors = jet(n);
+colors = jet(m);
 %[]Creates colos for the different chamber pressures.
 
-ep_indx = 2;
+%ep_indx = 2;
 %[]Index of chosen expansion ratio.
 
-for i = 1:n
+yyaxis(AxesT,'left');
+%[]Sets y-axis to left side.
 
-    plot(A_t,squeeze(F(i,ep_indx,:)), ...
+ylim([0,3000]);
+%[]Adjusts limits for left y-axis.
+
+yticks(0:500:3000);
+%[]Sets tick marks for left y-axis.
+
+for i = 1:m
+
+    plot(A_t,squeeze(F(end,i,:)), ...
         'Color',colors(i, :), ...
         'LineStyle','-', ...
         'LineWidth',1, ...
@@ -220,11 +250,31 @@ for i = 1:n
 
 end
 
+ylabel(AxesT, 'Thrust, F (N)', 'FontName','Times New Roman');
+%[]Sets the left y-axis label.
+
+yyaxis(AxesT,'right');
+%[]Sets y-axis to right side.
+
+ylim([0,350]);
+%[]Adjusts limits for right y-axis.
+
+yticks(0:50:350);
+%[]Sets tick marks for right y-axis.
+
+plot(A_t,epsilonV, ...
+    'Color','k', ...
+    'LineStyle','-', ...
+    'LineWidth',2, ...
+    'Marker','none', ...
+    'Parent',AxesT);
+%[]Adds a plot to the specified axes and adjusts its properties.
+
+ylabel(AxesT, 'Expansion Ratio, \epsilon','FontName','Times New Roman');
+%[]Sets the right y-axis label.
+
 xlabel(AxesT, 'Throat Area, A_t (m^2)','FontName','Times New Roman');
 %[]Sets the x-axis label.
-
-ylabel(AxesT, 'Thrust, F (N)','FontName','Times New Roman');
-%[]Sets the y-axis label.
 
 %% PRINT SIMULATION TIME:
 
