@@ -4,7 +4,7 @@ SCRIPT NAME: Prop_Analysis.m
 AUTHOR: Elias Oliver
 CLASS: MAE 4350.001 (Aerospace Vehicle Design I)
 INITIAL VERSION: 03/23/2026
-LAST REVISION: 03/24/2026
+LAST REVISION: 03/27/2026
 ====================================================================================================
 SCRIPT DESCRIPTION:
 This script will create plots to inform the design desicions needed for the RCS thrusters.
@@ -60,7 +60,7 @@ gamma = 1.185;
 
 %% Constants:
 
-eta_c_star = 1.05;
+eta_c_star = 0.98;
 %[]c* combustion efficiency, conservative estimate for frozen flow.
 
 R = 8314 / MM;
@@ -89,13 +89,13 @@ theta_cn = deg2rad(15);
 
 %% Adjust # of Point in Ranges:
 
-n = 10;
+n = 50;
 %[]Number of values in the chamber pressure range.
 
-m = 50;
+m = 10000;
 %[]Number of values in the exit pressure range.
 
-p = 50;
+p = 500;
 %[]Number of values in the throat area range.
 
 %% Reasonable Ranges:
@@ -103,7 +103,7 @@ p = 50;
 P_c = linspace(345000,1380000,n);
 %[Pa]Creates a range of possible chamber pressures.
 
-P_e = linspace(5000,700000,m);
+P_e = linspace(500,700000,m);
 %[Pa]Creates a range of possible exit pressures.
 
 A_t = linspace(6.4516E-5,0.00129032,p);
@@ -155,6 +155,8 @@ F = zeros(n,m,p);
 
     end
 
+%% Volume Calculations:
+
 V_c = L_star * A_t;
 %[m^3]Calculates the combustion chamber volume.
 
@@ -171,6 +173,56 @@ for i = 1:p
 
 end
 
+%% Limits:
+
+ep = epsilon(find(round(I_sp) == 283,1));
+%[]Finds the value of the expansion ratio that cooresponds to the desired specific impulse.
+
+Lim = ep * ones(1,p);
+%[]Creates an array of the expansion ratio value to be plotted as a horizontal line.
+
+A_int = A_t(find(round(epsilonV,0) == round(ep,0),1));
+%[m^2]Finds the throat area cooresponding to the required expansion ratio at the set volume.
+
+ALine = A_int * ones(1,p);
+%[]Creates an array of the throat area value to be plotted as a vertical line.
+
+ep_indx = find(epsilon == ep,1);
+%[]Index of chosen expansion ratio.
+
+%% System Pressures:
+
+c = 8;
+%[]Choose the line of desired chamber pressure.
+
+C_Pc = P_c(c);
+%[Pa]Choosen chamber pressure.
+
+dP_dyn = 64630.3;
+%[Pa]Pressure loss due to dynamic pressure. Assuming 10 m/s through lines.
+
+dP_feed = 50000;
+%[Pa]Pressure loss through feed system. Conservative estimate.
+
+P_tank = 1.2 * C_Pc + dP_feed + dP_dyn;
+%[Pa]Calculates required tank pressure.
+
+%% Thrust Calculations:
+
+Thrust = F(c,ep_indx,A_t == A_int);
+%[N]Engine thrust.
+
+m_eng = Thrust / (g_0 * (0.0006098 * Thrust + 13.44));
+%[kg]Mass of engine. Empirical relation from Humble, Eqn. 5.4
+
+E_TW = Thrust / (m_eng * g_0);
+%[]Engine thrust to weight ratio. Sea level statistic.
+
+k_ve = V_eng / Thrust;
+%[m^3/kg]Engine volume coefficient.
+
+Tline = 500 * ones(1,p);
+
 %% Make Isp Plot:
 
 Window = figure( ... %Opens a new window.
@@ -185,9 +237,9 @@ Axes = axes( ...
     'FontWeight','Bold', ...
     'NextPlot','Add', ...
     'Parent',Window, ...
-    'XLim',[0,16], ...
+    'XLim',[0,50], ...
     'YLim', [200,300], ...
-    'XTick',0:1:16, ...
+    'XTick',0:5:50, ...
     'YTick',200:10:300);
 %[]Adds an axes to the specified window and adjusts its properties.
 
@@ -205,6 +257,8 @@ xlabel(Axes, 'Expansion ratio, \epsilon','FontName','Times New Roman');
 ylabel(Axes, 'Specific Impulse, I_{sp} (s)','FontName','Times New Roman');
 %[]Sets the y-axis label.
 
+box on;
+
 %% Make Thrust Plot:
 
 WindowT = figure( ... %Opens a new window.
@@ -219,15 +273,12 @@ AxesT = axes( ...
     'FontWeight','Bold', ...
     'NextPlot','Add', ...
     'Parent',WindowT, ...
-    'XLim',[6.4E-5,0.0013], ...
-    'XTick',6.4E-5:0.0001:0.0013);
+    'XLim',[6.4516E-5,0.0013], ...
+    'XTick',0:0.0001:0.0013);
 %[]Adds an axes to the specified window and adjusts its properties.
 
-colors = jet(m);
+colors = winter(n);
 %[]Creates colos for the different chamber pressures.
-
-%ep_indx = 2;
-%[]Index of chosen expansion ratio.
 
 yyaxis(AxesT,'left');
 %[]Sets y-axis to left side.
@@ -238,9 +289,9 @@ ylim([0,3000]);
 yticks(0:500:3000);
 %[]Sets tick marks for left y-axis.
 
-for i = 1:m
+for i = 1:n
 
-    plot(A_t,squeeze(F(end,i,:)), ...
+    plot(A_t,squeeze(F(i,ep_indx,:)), ...
         'Color',colors(i, :), ...
         'LineStyle','-', ...
         'LineWidth',1, ...
@@ -250,20 +301,44 @@ for i = 1:m
 
 end
 
+plot(ALine,linspace(0,3000,p), ...
+    'Color','#09a300', ...
+    'LineStyle','-', ...
+    'LineWidth',2, ...
+    'Marker','none', ...
+    'Parent',AxesT);
+%[]Adds a plot to the specified axes and adjusts its properties.
+
+plot(A_t,Tline, ...
+    'Color','r', ...
+    'LineStyle','-', ...
+    'LineWidth',2, ...
+    'Marker','none', ...
+    'Parent',AxesT);
+%[]Adds a plot to the specified axes and adjusts its properties.
+
 ylabel(AxesT, 'Thrust, F (N)', 'FontName','Times New Roman');
 %[]Sets the left y-axis label.
 
 yyaxis(AxesT,'right');
 %[]Sets y-axis to right side.
 
-ylim([0,350]);
+ylim([0,100]);
 %[]Adjusts limits for right y-axis.
 
-yticks(0:50:350);
+yticks(0:25:100);
 %[]Sets tick marks for right y-axis.
 
 plot(A_t,epsilonV, ...
     'Color','k', ...
+    'LineStyle','-', ...
+    'LineWidth',2, ...
+    'Marker','none', ...
+    'Parent',AxesT);
+%[]Adds a plot to the specified axes and adjusts its properties.
+
+plot(A_t,Lim, ...
+    'Color','#09a300', ...
     'LineStyle','-', ...
     'LineWidth',2, ...
     'Marker','none', ...
@@ -275,6 +350,21 @@ ylabel(AxesT, 'Expansion Ratio, \epsilon','FontName','Times New Roman');
 
 xlabel(AxesT, 'Throat Area, A_t (m^2)','FontName','Times New Roman');
 %[]Sets the x-axis label.
+
+AxesT.YAxis(1).Color = [0 0 0];
+%[]Sets left y-axis to black.
+
+AxesT.YAxis(2).Color = [0 0 0];
+%[]Sets right y-axis to black.
+
+AxesT.XColor = [0 0 0];
+%[]Sets x-axis to black.
+
+box on;
+
+%% Print Outputs:
+
+fprintf('Engine Parameters:\nThrust = %0.0f N\nExpansion Ratio = %0.1f\nThroat Area = %f m^2\nChamber Pressure = %0.0f Pa\nTank Pressure = %0.0f Pa\nEngine Volume Coefficient = %f\nEngine Thrust to Weight = %0.3f\nEngine Mass = %0.3f kg\n',Thrust,ep,A_int,C_Pc,P_tank,k_ve,E_TW,m_eng);
 
 %% PRINT SIMULATION TIME:
 
